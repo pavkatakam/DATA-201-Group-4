@@ -2,7 +2,7 @@
 -- DATA 201 Group Project: Airbnb Multi-City Database
 -- Cities: Los Angeles (LA), San Diego (SD), San Francisco (SF)
 --
--- HOW TO USE (everyone on the team, read this first):
+-- HOW TO USE:
 --   1. Clone the shared repo: https://github.com/pavkatakam/DATA-201-Group-4
 --      You should end up with these files at the repo root:
 --        listings_LA.csv, listings_SD.csv, listings_SF.csv
