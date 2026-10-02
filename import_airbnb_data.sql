@@ -2,24 +2,16 @@
 -- DATA 201 Group Project: Airbnb Multi-City Database
 -- Cities: Los Angeles (LA), San Diego (SD), San Francisco (SF)
 --
+--
 -- HOW TO USE:
 --   1. Clone the shared repo: https://github.com/pavkatakam/DATA-201-Group-4
 --      You should end up with these files at the repo root:
 --        listings_LA.csv, listings_SD.csv, listings_SF.csv
---        reviews_LA.csv, reviews_SD.csv, reviews_SF.csv
---   2. Find-and-replace the placeholder  {{DATA_PATH}}  everywhere in
+--   2. Find-and-replace the placeholder  /Users/gulina/sjsu-ADI/DATA-201/project/DATA-201-Group-4  everywhere in
 --      this file with YOUR OWN absolute path to where you cloned that repo.
 --      Example (Mac): /Users/yourname/sjsu-ADI/DATA-201/project/DATA-201-Group-4
 --      (In MySQL Workbench: Cmd+F / Ctrl+F -> Replace, search
---       {{DATA_PATH}}, replace with your path, "Replace All".)
---   3. Make sure local_infile is enabled (one-time setup):
---        a) Run:  SET GLOBAL local_infile = 1;
---        b) In Workbench: Database Connections -> Edit your connection
---           -> Advanced tab -> "Others" box -> add a line: OPT_LOCAL_INFILE=1
---           -> close and reopen the connection.
---        c) Confirm with: SHOW VARIABLES LIKE 'local_infile';  (should be ON)
---   4. Run this whole script (Execute (all) button / lightning-bolt icon).
---      It is safe to re-run from scratch any time (drops old tables first).
+--       /Users/gulina/sjsu-ADI/DATA-201/project/DATA-201-Group-4, replace with your path, "Replace All".)
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS airbnb_db;
@@ -29,17 +21,14 @@ USE airbnb_db;
 -- Clean slate: drop in child-to-parent order (FK-safe)
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS REVIEW;
+DROP TABLE IF EXISTS REVIEWER;
 DROP TABLE IF EXISTS LISTING;
 DROP TABLE IF EXISTS NEIGHBORHOOD;
 DROP TABLE IF EXISTS HOST;
-DROP TABLE IF EXISTS REVIEWER;
 DROP TABLE IF EXISTS CITY;
 DROP TABLE IF EXISTS staging_listings_la;
 DROP TABLE IF EXISTS staging_listings_sd;
 DROP TABLE IF EXISTS staging_listings_sf;
-DROP TABLE IF EXISTS staging_reviews_la;
-DROP TABLE IF EXISTS staging_reviews_sd;
-DROP TABLE IF EXISTS staging_reviews_sf;
 
 -- ------------------------------------------------------------
 -- Part 1: final normalized tables
@@ -53,11 +42,6 @@ CREATE TABLE HOST (
   host_id BIGINT PRIMARY KEY,
   host_profile_id BIGINT,
   host_name VARCHAR(100)
-);
-
-CREATE TABLE REVIEWER (
-  reviewer_id BIGINT PRIMARY KEY,
-  reviewer_name VARCHAR(100)
 );
 
 CREATE TABLE NEIGHBORHOOD (
@@ -86,16 +70,6 @@ CREATE TABLE LISTING (
   FOREIGN KEY (neighborhood_name, city_id) REFERENCES NEIGHBORHOOD(neighborhood_name, city_id)
 );
 
-CREATE TABLE REVIEW (
-  review_id BIGINT PRIMARY KEY,
-  reviewer_id BIGINT,
-  listing_id BIGINT,
-  review_date DATE,
-  comments TEXT,
-  FOREIGN KEY (reviewer_id) REFERENCES REVIEWER(reviewer_id),
-  FOREIGN KEY (listing_id) REFERENCES LISTING(listing_id)
-);
-
 -- ------------------------------------------------------------
 -- Part 2: staging tables (flat, mirror the raw CSV columns)
 -- ------------------------------------------------------------
@@ -109,60 +83,32 @@ CREATE TABLE staging_listings_la (
 CREATE TABLE staging_listings_sd LIKE staging_listings_la;
 CREATE TABLE staging_listings_sf LIKE staging_listings_la;
 
-CREATE TABLE staging_reviews_la (
-  listing_id BIGINT, id BIGINT, `date` DATE, reviewer_id BIGINT, reviewer_name VARCHAR(100), comments TEXT
-);
-CREATE TABLE staging_reviews_sd LIKE staging_reviews_la;
-CREATE TABLE staging_reviews_sf LIKE staging_reviews_la;
-
 -- ------------------------------------------------------------
 -- Part 3: load raw CSVs into staging tables
 -- ------------------------------------------------------------
-LOAD DATA LOCAL INFILE '{{DATA_PATH}}/listings_LA.csv'
+LOAD DATA LOCAL INFILE '/Users/gulina/sjsu-ADI/DATA-201/project/DATA-201-Group-4/listings_LA.csv'
 INTO TABLE staging_listings_la
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-LOAD DATA LOCAL INFILE '{{DATA_PATH}}/listings_SD.csv'
+LOAD DATA LOCAL INFILE '/Users/gulina/sjsu-ADI/DATA-201/project/DATA-201-Group-4/listings_SD.csv'
 INTO TABLE staging_listings_sd
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-LOAD DATA LOCAL INFILE '{{DATA_PATH}}/listings_SF.csv'
+LOAD DATA LOCAL INFILE '/Users/gulina/sjsu-ADI/DATA-201/project/DATA-201-Group-4/listings_SF.csv'
 INTO TABLE staging_listings_sf
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS;
 
-LOAD DATA LOCAL INFILE '{{DATA_PATH}}/reviews_LA.csv'
-INTO TABLE staging_reviews_la
-FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
-LINES TERMINATED BY '\n'
-IGNORE 1 ROWS;
-
-LOAD DATA LOCAL INFILE '{{DATA_PATH}}/reviews_SD.csv'
-INTO TABLE staging_reviews_sd
-FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
-LINES TERMINATED BY '\n'
-IGNORE 1 ROWS;
-
-LOAD DATA LOCAL INFILE '{{DATA_PATH}}/reviews_SF.csv'
-INTO TABLE staging_reviews_sf
-FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
-LINES TERMINATED BY '\n'
-IGNORE 1 ROWS;
-
 -- ------------------------------------------------------------
--- Part 4: populate final tables from staging, in FK-safe order
+-- Part 4: populate final tables from staging
 -- ------------------------------------------------------------
 INSERT INTO CITY VALUES (1,'Los Angeles'), (2,'San Diego'), (3,'San Francisco');
 
--- NOTE: a few host_id values have more than one (host_profile_id, host_name)
--- combo across the raw files (data quality noise), so plain DISTINCT+UNION
--- can produce 2 rows for the same host_id and collide on the PRIMARY KEY.
--- GROUP BY host_id guarantees exactly one row per host_id (pick any variant).
 INSERT INTO HOST (host_id, host_profile_id, host_name)
 SELECT host_id, MAX(host_profile_id), MAX(host_name)
 FROM (
@@ -173,18 +119,6 @@ FROM (
   SELECT host_id, host_profile_id, host_name FROM staging_listings_sf WHERE host_id IS NOT NULL
 ) AS combined_hosts
 GROUP BY host_id;
-
--- Same safety fix applied here in case a reviewer_id has inconsistent reviewer_name
-INSERT INTO REVIEWER (reviewer_id, reviewer_name)
-SELECT reviewer_id, MAX(reviewer_name)
-FROM (
-  SELECT reviewer_id, reviewer_name FROM staging_reviews_la WHERE reviewer_id IS NOT NULL
-  UNION ALL
-  SELECT reviewer_id, reviewer_name FROM staging_reviews_sd WHERE reviewer_id IS NOT NULL
-  UNION ALL
-  SELECT reviewer_id, reviewer_name FROM staging_reviews_sf WHERE reviewer_id IS NOT NULL
-) AS combined_reviewers
-GROUP BY reviewer_id;
 
 INSERT INTO NEIGHBORHOOD (neighborhood_name, city_id, neighborhood_group)
 SELECT DISTINCT neighbourhood, 1, neighbourhood_group FROM staging_listings_la WHERE neighbourhood IS NOT NULL;
@@ -203,26 +137,10 @@ INSERT INTO LISTING (listing_id, host_id, city_id, neighborhood_name, property_n
 SELECT id, host_id, 3, neighbourhood, name, room_type, price, latitude, longitude, minimum_nights, license, availability_365
 FROM staging_listings_sf;
 
--- INSERT IGNORE: some reviews reference listings that have since been
--- delisted (reviews.csv covers all-time history, listings.csv is a
--- current snapshot) -- those orphan rows are skipped instead of erroring.
--- CAP: LIMIT 50000 per city -- the full LA file (~1.4M rows) keeps hitting
--- the client's query timeout, so capping keeps the pipeline usable for now.
-INSERT IGNORE INTO REVIEW (review_id, reviewer_id, listing_id, review_date, comments)
-SELECT id, reviewer_id, listing_id, `date`, comments FROM staging_reviews_la LIMIT 50000;
-
-INSERT IGNORE INTO REVIEW (review_id, reviewer_id, listing_id, review_date, comments)
-SELECT id, reviewer_id, listing_id, `date`, comments FROM staging_reviews_sd LIMIT 50000;
-
-INSERT IGNORE INTO REVIEW (review_id, reviewer_id, listing_id, review_date, comments)
-SELECT id, reviewer_id, listing_id, `date`, comments FROM staging_reviews_sf LIMIT 50000;
-
 -- ------------------------------------------------------------
 -- Part 5: verify
 -- ------------------------------------------------------------
 SELECT (SELECT COUNT(*) FROM CITY) AS city_cnt,
        (SELECT COUNT(*) FROM HOST) AS host_cnt,
-       (SELECT COUNT(*) FROM REVIEWER) AS reviewer_cnt,
        (SELECT COUNT(*) FROM NEIGHBORHOOD) AS neighborhood_cnt,
-       (SELECT COUNT(*) FROM LISTING) AS listing_cnt,
-       (SELECT COUNT(*) FROM REVIEW) AS review_cnt;
+       (SELECT COUNT(*) FROM LISTING) AS listing_cnt;
