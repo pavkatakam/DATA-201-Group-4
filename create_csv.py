@@ -59,7 +59,7 @@ all_listings = all_listings.merge(
 
 # D. Insert into Listing table
 listings = all_listings[[
-    'id', 'host_id', 'city_ID', 'neighbourhood_id', 'name', 
+    'id', 'host_id', 'neighbourhood_id', 'name', 
     'room_type', 'price', 'latitude', 'longitude', 
     'minimum_nights', 'license', 'availability_365'
 ]].drop_duplicates(subset=['id']).copy()
@@ -68,7 +68,7 @@ listings['id'] = listings['id'].astype('int64')
 listings['host_id'] = listings['host_id'].astype('Int64')
 
 listings.columns = [
-    'listing_ID', 'host_ID', 'city_ID', 'neighbourhood_id', 'property_name',
+    'listing_ID', 'host_ID', 'neighbourhood_id', 'property_name',
     'room_type', 'price', 'latitude', 'longitude',
     'minimum_nights', 'license', 'availability_365'
 ]
