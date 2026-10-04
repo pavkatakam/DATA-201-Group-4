@@ -32,9 +32,6 @@ CREATE TABLE Listing (
     host_ID BIGINT,
     CONSTRAINT fk_host_ID
         FOREIGN KEY (host_ID) REFERENCES Host(host_ID),
-    city_ID INT, 
-    CONSTRAINT fk_listing_city_ID
-        FOREIGN KEY (city_ID) REFERENCES City(city_ID),
     neighbourhood_id BIGINT,
     CONSTRAINT fk_neighbourhood_id
         FOREIGN KEY (neighbourhood_id) REFERENCES Neighbourhood(neighbourhood_id),
